@@ -203,6 +203,34 @@ public String getTokenValue(){
 }
 ```
 
+#### 检查token是否过期
+
+```java
+public void checkActivityTimeout(String tokenValue){
+    //如果tokenValue == null 获取设置了永不过期，不用检查
+    if(tokenValue == null || getConfig().getActivityTimeout() == SaTokenDao.NEVER_EXPIRE){
+        return;
+    }
+    //如果本次请求已经有了检查标记，即被检查过，放行
+    HttpServletRequest req = SaTokenManager.getSaTokenServlet().getRequest();
+    if(req.getAttribute(SaTokenConsts.TOKEN_ACTIVITY_CHECKED_KEY) != null){
+        return;
+    }
+    //验证是否过期
+    long timeout = getTokenActivityTimeoutByToken(tokenValue);
+    //-1代表token已经被设置了永不过期
+    if(timeout == SaTokenDao.NEVER_EXPIRE){
+        return;
+    }
+    //-2表示已经过期
+    if(timeout == SaTokenDao.NOT_VALUE_EXPIRE){
+        throw ...
+    }
+    //打上标记检查
+    req.setAttribute(SaTokenConsts.TOKEN_ACTIVITY_CHECKED_KEY, true);
+}
+```
+
 ### session相关操作逻辑
 
 #### 在当前session上登录
@@ -284,24 +312,54 @@ public void logout(){
 
 //根据token进行注销
 public void logoutByTokenValue(String tokenValue) {
-	// 1. 清理掉[token-最后操作时间] 
-	clearLastActivity(tokenValue); 	
+    // 1. 清理掉[token-最后操作时间] 
+    clearLastActivity(tokenValue); 	
 		
- 	// 2. 尝试清除token-id键值对 (先从db中获取loginId值，如果根本查不到loginId，那么无需继续操作 )
- 	String loginId = getLoginIdNotHandle(tokenValue);
- 	if(loginId == null || NotLoginException.ABNORMAL_LIST.contains(loginId)) { 			
-            return;
- 	}
- 	SaTokenManager.getSaTokenDao().deleteKey(getKeyTokenValue(tokenValue));	
+    // 2. 尝试清除token-id键值对 (先从db中获取loginId值，如果根本查不到loginId，那么无需继续操作 )
+    String loginId = getLoginIdNotHandle(tokenValue);
+    if(loginId == null || NotLoginException.ABNORMAL_LIST.contains(loginId)) { 			
+        return;
+    }
+    SaTokenManager.getSaTokenDao().deleteKey(getKeyTokenValue(tokenValue));	
  		
- 	// 3. 尝试清理账号session上的token签名 (如果为null或已被标记为异常, 那么无需继续执行 )
- 	SaSession session = getSessionByLoginId(loginId, false);
- 	if(session == null) {
- 	    return;
- 	}
-	session.removeTokenSign(tokenValue); 
+    // 3. 尝试清理账号session上的token签名 (如果为null或已被标记为异常, 那么无需继续执行 )
+    SaSession session = getSessionByLoginId(loginId, false);
+    if(session == null) {
+        return;
+    }
+    session.removeTokenSign(tokenValue); 
  	 	
- 	// 4. 尝试注销session
-	session.logoutByTokenSignCountToZero();
+    // 4. 尝试注销session
+    session.logoutByTokenSignCountToZero();
+}
+```
+
+#### 指定loginId和device的session注销登录(踢人下线)
+
+```java
+//当被踢对象再次访问系统的时候，会抛出NotLoginException
+public void logoutByLoginId(Object loginId, String device){
+    //1. 先获取session
+    SaSession session = getSessionByLoginId(loginId);
+    if(session == null){ //session已不存在
+        return;
+    }
+    //2. 循环tokenSign列表，删除相关信息
+    List<TokenSign> tokenSignList = session.getTokenSignList();
+    for(TokenSign tokenSign : tokenSignList){
+        //device == null表示注销该loginId对应的所有设备
+        if(device == null || tokenSign.getDevice().equals(device)){
+            //1. 获取tokenValue
+            String tokenValue = tokenSign.getValue();
+            //2. 清理掉token最后操作时间
+            clearLastActivity(tokenValue);
+            //3. 标记该loginId对应的device会话下线
+            SaTokenManager.getSaTokenDao().updateValue(getKeyTokenValue(tokenValue), NotLoginException.KICK_OUT);
+            //4. 清理账号session上的token签名
+            session.removeTokenSign(tokenValue);
+        }
+    }
+    //3. 尝试注销session
+    session.logoutByTokenSignCountToZero();
 }
 ```
