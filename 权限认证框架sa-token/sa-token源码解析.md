@@ -1,9 +1,11 @@
+# Sa-token源码解析
+
 <!-- vscode-markdown-toc -->
-* 1. [一、Sa-token配置选项](#Sa-token)
-* 2. [二、Token(令牌应该如何设计，包含哪些参数)](#Token)
-* 3. [三、Session的设计](#Session)
-* 4. [四、`SaTokenManager`容器](#SaTokenManager)
-* 5. [五、`StpLogic`核心验证模组](#StpLogic)
+* 1. [Sa-token配置选项](#Sa-token)
+* 2. [Token(令牌应该如何设计，包含哪些参数)](#Token)
+* 3. [Session的设计](#Session)
+* 4. [`SaTokenManager`容器](#SaTokenManager)
+* 5. [`StpLogic`核心验证模组](#StpLogic)
 	* 5.1. [token相关操作逻辑](#token)
 		* 5.1.1. [tokenValue的获取](#tokenValue)
 		* 5.1.2. [检查token是否过期](#token-1)
@@ -11,19 +13,17 @@
 		* 5.2.1. [在当前session上登录](#session-1)
 		* 5.2.2. [在当前session上注销登录](#session-1)
 		* 5.2.3. [指定loginId和device的session注销登录(踢人下线)](#loginIddevicesession)
-* 6. [六、`StpUtil`对外暴露工具类](#StpUtil)
+* 6. [`StpUtil`对外暴露工具类](#StpUtil)
 		* 6.1. [指定loginId的session注销登录(强制所有其他终端下线)](#loginIdsession)
 		* 6.2. [指定loginId和device的session注销登录(强制特定终端下线)](#loginIddevicesession-1)
 		* 6.3. [指定token的session注销登录](#tokensession)
-* 7. [七、Sa-Token注解设计](#Sa-Token)
+* 7. [Sa-Token注解设计](#Sa-Token)
 
 <!-- vscode-markdown-toc-config
 	numbering=true
 	autoSave=true
 	/vscode-markdown-toc-config -->
-<!-- /vscode-markdown-toc --># Sa-token源码解析
-
-
+<!-- /vscode-markdown-toc -->
 
 ##  1. <a name='Sa-token'></a>Sa-token配置选项
 
