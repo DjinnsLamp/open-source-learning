@@ -106,3 +106,37 @@ public class SaTokenConsts{
 }
 ```
 
+## Session的设计
+
+Session是会话中专业的数据缓存组件，在sa-token中Session分为三种, 分别是：
+
+* **User-Session**: 指的是框架为每个loginId分配的Session
+* **Token-Session**: 指的是框架为每个token分配的Session
+* **自定义Session**: 指的是以一个特定的值作为SessionId，来分配的Session 
+
+Sa-Token对于session的设计被保存在`SaSession`对象中，由于考虑到并发的原因，session中挂载的数据采用`ConcurrentHashMap`。
+
+```java
+public class SaSession implements Serializable {
+	/** 此Session的id */
+	private String id;
+	/** 此Session的创建时间 */
+	private long createTime;
+	/** 此Session的所有挂载数据 */
+	private Map<String, Object> dataMap = new ConcurrentHashMap<String, Object>();
+        /** 此session绑定的token签名列表 */
+        private List<TokenSign> tokenSignList = new Vector<TokenSign>();
+}
+```
+
+`SaSession`包含一个`TokenSign`的签名列表，即token签名，被封装在`TokenSign`对象中，其作用就是**将token与用户的设备绑定起来，组成一个特殊的标识**:
+
+```java
+public class TokenSign{
+    /* token值 */
+    private String value;
+    /* 设备标识 */
+    private String device;
+}
+```
+
