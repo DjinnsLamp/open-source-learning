@@ -1,83 +1,5 @@
 # Sa-token源码解析
 
-<style>
-    .hljs-keyword,
-    .hljs-selector-tag,
-    .hljs-built_in,
-    .hljs-name,
-    .hljs-tag {
-
-        color: #569CD6;
-
-    }
-
-    .hljs-string,
-    .hljs-type,
-    .hljs-built_in,
-    .hljs-builtin-name,
-    .hljs-selector-id,
-    .hljs-selector-attr,
-    .hljs-selector-pseudo,
-    .hljs-addition,
-    .hljs-variable,
-    .hljs-template-variable {
-
-        color: #CE9178;
-
-    }
-
-
-
-    .hljs-comment,
-    .hljs-deletion,
-    .hljs-meta {
-
-        color: #6A9955;
-
-    }
-
-    .hljs-bullet,
-    .hljs-quote,
-    .hljs-number,
-    .hljs-regexp,
-    .hljs-literal,
-    .hljs-link {
-
-        color: #B5CEA8;
-
-    }
-
-    .hljs-code,
-    .hljs-title,
-    .hljs-section,
-    .hljs-selector-class {
-
-        color: #DCDCAA;
-
-    }
-
-    .hljs-keyword,
-    .hljs-selector-tag,
-    .hljs-built_in,
-    .hljs-name,
-    .hljs-tag {
-
-        color: #569CD6;
-
-    }
-
-    .hljs-attr {
-
-        color: #9CDCFE;
-
-    }
-    .cnblogs-markdown .hljs
-    {
-        background: #1E1E1E !important;
-        background-image: linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%);
-    }
-</style>
-
 --------------
 
 ## Sa-token配置选项
@@ -163,6 +85,24 @@ public class SaTokenInfo {
 public class SaTokenConsts{
     /* 如果token为本次请求新创建的，则以此字符串作为key存储在request中 */
     public static final String JUST_CREATED_SAVE_KEY = "JUST_CREATED_SAVE_KEY_";
-    /*  */
+    /* 如果本次请求已经验证过并且操作没有过期，则以此值存储在当前的request中 */
+    public static final String TOKEN_ACTIVITY_TIMEOUT_CHECKED_KEY = "TOKEN_ACTIVITY_TIMEOUT_CHECKDE_KEY_";
+    /* 在登录时，进行临时身份切换时使用的key */
+    public static final String SWITCH_TO_SAVE_KEY = "SWITCH_TO_SAVE_KEY_";
+    /* 在登陆时，默认使用的设备名称 */
+    public static final String DEFAULT_LOGIN_DEVICE = "default-device";
+    /* Token风格: uuid */
+    public static final String TOKEN_STYLE_UUID = "uuid";
+    /* Token分割，简单uuid */
+    public static final String TOKEN_STYLE_SIMPLE_UUID = "simple-uuid"; 
+    /* token风格: 32位随机字符串 */
+    public static final String TOKEN_STYLE_RANDOM_32 = "random-32"; 
+    /* token风格: 64位随机字符串 */
+    public static final String TOKEN_STYLE_RANDOM_64 = "random-64"; 
+    /* token风格: 128位随机字符串 */
+    public static final String TOKEN_STYLE_RANDOM_128 = "random-128"; 
+    /* token风格: tik风格 (2_14_16)  */
+    public static final String TOKEN_STYLE_RANDOM_TIK = "tik"; 
 }
 ```
+
