@@ -1,8 +1,31 @@
-# Sa-token源码解析
+<!-- vscode-markdown-toc -->
+* 1. [一、Sa-token配置选项](#Sa-token)
+* 2. [二、Token(令牌应该如何设计，包含哪些参数)](#Token)
+* 3. [三、Session的设计](#Session)
+* 4. [四、`SaTokenManager`容器](#SaTokenManager)
+* 5. [五、`StpLogic`核心验证模组](#StpLogic)
+	* 5.1. [token相关操作逻辑](#token)
+		* 5.1.1. [tokenValue的获取](#tokenValue)
+		* 5.1.2. [检查token是否过期](#token-1)
+	* 5.2. [session相关操作逻辑](#session)
+		* 5.2.1. [在当前session上登录](#session-1)
+		* 5.2.2. [在当前session上注销登录](#session-1)
+		* 5.2.3. [指定loginId和device的session注销登录(踢人下线)](#loginIddevicesession)
+* 6. [六、`StpUtil`对外暴露工具类](#StpUtil)
+		* 6.1. [指定loginId的session注销登录(强制所有其他终端下线)](#loginIdsession)
+		* 6.2. [指定loginId和device的session注销登录(强制特定终端下线)](#loginIddevicesession-1)
+		* 6.3. [指定token的session注销登录](#tokensession)
+* 7. [七、Sa-Token注解设计](#Sa-Token)
 
---------------
+<!-- vscode-markdown-toc-config
+	numbering=true
+	autoSave=true
+	/vscode-markdown-toc-config -->
+<!-- /vscode-markdown-toc --># Sa-token源码解析
 
-## Sa-token配置选项
+
+
+##  1. <a name='Sa-token'></a>Sa-token配置选项
 
 Sa-token可以零启动配置和通过配置文件方式进行参数的配置，所有的配置选项如下，配置文件对应的参数被封装为`SaTokenConfig`，`SaTokenConfig`含有配置参数的默认值，配置文件中未出现的配置选项会直接使用默认值
 
@@ -50,7 +73,7 @@ spring:
 
 `SaTokenConfigFactory`负责从`classpath:sa-token.properties`配置文件中读取参数，封装成`SaTokenConfig`，**在非IOC环境下不会使用到该类**。
 
-## Token(令牌应该如何设计，包含哪些参数)
+##  2. <a name='Token'></a>Token(令牌应该如何设计，包含哪些参数)
 
 Token在权限认证模块中的作用是无可替代的，所有的认证流程基本都是基于token，在Sa-token项目中，token的常用信息被封装在`SaTokenInfo`中，大致内容如下:
 
@@ -106,7 +129,7 @@ public class SaTokenConsts{
 }
 ```
 
-## Session的设计
+##  3. <a name='Session'></a>Session的设计
 
 Session是会话中专业的数据缓存组件，在sa-token中Session分为三种, 分别是：
 
@@ -140,7 +163,7 @@ public class TokenSign{
 }
 ```
 
-## `SaTokenManager`
+##  4. <a name='SaTokenManager'></a>`SaTokenManager`容器
 
 `SaTokenManager`管理所有有关token操作的接口对象，是存放接口Bean的容器，基本定义如下:
 
@@ -161,7 +184,7 @@ public class SaTokenManager{
 }
 ```
 
-## `StpLogic`核心验证模组
+##  5. <a name='StpLogic'></a>`StpLogic`核心验证模组
 
 `StpLogic`是权限验证的核心实现类，实现的操作逻辑主要包含:
 
@@ -169,9 +192,9 @@ public class SaTokenManager{
 * **session相关操作逻辑**
 * **验证相关操作逻辑**
 
-### token相关操作逻辑
+###  5.1. <a name='token'></a>token相关操作逻辑
 
-#### tokenValue的获取
+####  5.1.1. <a name='tokenValue'></a>tokenValue的获取
 
 ```java
 public String getTokenValue(){
@@ -203,7 +226,7 @@ public String getTokenValue(){
 }
 ```
 
-#### 检查token是否过期
+####  5.1.2. <a name='token-1'></a>检查token是否过期
 
 ```java
 public void checkActivityTimeout(String tokenValue){
@@ -231,9 +254,9 @@ public void checkActivityTimeout(String tokenValue){
 }
 ```
 
-### session相关操作逻辑
+###  5.2. <a name='session'></a>session相关操作逻辑
 
-#### 在当前session上登录
+####  5.2.1. <a name='session-1'></a>在当前session上登录
 
 ```java
 //loginId建立类型: long | int | String
@@ -293,7 +316,7 @@ public void setLoginId(Object loginId, String device){
 }
 ```
 
-#### 在当前session上注销登录
+####  5.2.2. <a name='session-1'></a>在当前session上注销登录
 
 ```java
 public void logout(){
@@ -334,7 +357,7 @@ public void logoutByTokenValue(String tokenValue) {
 }
 ```
 
-#### 指定loginId和device的session注销登录(踢人下线)
+####  5.2.3. <a name='loginIddevicesession'></a>指定loginId和device的session注销登录(踢人下线)
 
 ```java
 //当被踢对象再次访问系统的时候，会抛出NotLoginException
@@ -363,3 +386,46 @@ public void logoutByLoginId(Object loginId, String device){
     session.logoutByTokenSignCountToZero();
 }
 ```
+
+##  6. <a name='StpUtil'></a>`StpUtil`对外暴露工具类
+
+`StpUtil`作为对外使用的Api，其内部的一系列操作是基于`StpLogic`逻辑实现的，同时将`StpLogic`提供的方法进行整合实现多种功能，整个`StpUtil`内置对象只有一个`StpLogic`，代码如下:
+
+```java
+public class StpUtil{
+    //对应StpLogic中的loginKey为login
+    public static StpLogic stpLogic = new StpLogic("login");
+}
+```
+
+####  6.1. <a name='loginIdsession'></a>指定loginId的session注销登录(强制所有其他终端下线)
+
+```java
+public static void logoutByLoginId(Object loginId){
+    stpLogic.logoutByLoginId(loginId);
+}
+```
+
+####  6.2. <a name='loginIddevicesession-1'></a>指定loginId和device的session注销登录(强制特定终端下线)
+
+```java
+public static void logoutByLoginId(Object loginId, String device){
+    stpLogic.logoutByLoginId(loginId, device);
+}
+```
+
+####  6.3. <a name='tokensession'></a>指定token的session注销登录
+
+```java
+public static void logoutByTokenValue(String tokenValue){
+    stpLogic.logoutByTokenValue(tokenValue);
+}
+```
+
+##  7. <a name='Sa-Token'></a>Sa-Token注解设计
+
+Sa-Token的权限验证是基于注解的，因此代码更加简洁优雅，供用户使用的注解主要有3个，分别是:
+
+* **`@SaCheckLogin`**: 可作用于方法和类上，作用在类上的时候，该类所有的method均需要进行登录检查
+* **`@SaCheckPermission`**: 可作用在方法和类上，作用在类上的时候，该类所有的method均需要进行权限验证
+* **`@SaCheckRole`**: 可作用在方法和类上，作用在类上的时候，该类所有的method都需要进行角色验证
