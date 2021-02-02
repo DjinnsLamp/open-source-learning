@@ -140,3 +140,168 @@ public class TokenSign{
 }
 ```
 
+## `SaTokenManager`
+
+`SaTokenManager`管理所有有关token操作的接口对象，是存放接口Bean的容器，基本定义如下:
+
+```java
+public class SaTokenManager{
+    /* 配置文件bean */
+    private static SaTokenManager saTokenConfig;
+    /* token持久化bean */
+    private static SaTokenDao satokenDao;
+    /* 权限认证bean */
+    private static StpInterface stpInterface;
+    /* 框架行为bean */
+    private static SaTokenAction saTokenAction;
+    /* cookie操作bean */
+    private static SaTokenCookie saTokenCookie;
+    /* servlet操作bean，主要与获取HttpReq/Resp相关 */
+    private static SaTokenServlet saTokenServlet;
+}
+```
+
+## `StpLogic`核心验证模组
+
+`StpLogic`是权限验证的核心实现类，实现的操作逻辑主要包含:
+
+* **token相关操作逻辑**
+* **session相关操作逻辑**
+* **验证相关操作逻辑**
+
+### token相关操作逻辑
+
+#### tokenValue的获取
+
+```java
+public String getTokenValue(){
+    HttpServletRequest req = SaTokenManager.getSaTokenManager.getSaTokenServlet().getRequest();
+    SaTokenConfig config = getConfig(); //获得配置参数
+    String keyTokenName = getTokenName(); //配置文件中会配置token-name，默认是satoken
+    String tokenValue = null;   //token值，name-value是一对键值对
+
+    //1.尝试从request中获取
+    if(req.getAttribute(getKeyJustCreatedSave()) != null){
+        // 基本形式: JUST_CREATED_SAVE_KEY + loginKey
+        tokenValue = String.valueOf(req.getAttribute(getKeyJustCreatedSave()));
+    }
+    //2. 尝试从req body中获取
+    if(tokenValue == null && config.getIsReadBody()){
+        tokenValue = req.getParameter(keyTokenName);
+    }
+    //3. 尝试从req header中获取
+    if(tokenValue == null && config.getIsReadHeader()){
+        tokenValue = req.getHeader(keyTokenName);
+    }
+    //4. 尝试从cookie中获取
+    if(tokenValue == null && config.getIsReadCookie()){
+        Cookie cookie = SaTokenManager.getSaTokenCookie().getCookie(req, keyTokenName);
+        if(cookie != null){
+            tokenValue = cookie.getValue();
+        }
+    }
+}
+```
+
+### session相关操作逻辑
+
+#### 在当前session上登录
+
+```java
+//loginId建立类型: long | int | String
+public void setLoginId(Object loginId, String device){
+    //1. 获取响应对象
+    HttpServletRequest req = SaTokenManager.getSaTokenServlet().getRequest();
+    SaTokenConfig config = getConfig();
+    SaTokenDao dao = SaTokenManager.getSaTokenDao();
+
+    //2. 根据loginId与device生成token
+    String tokenValue = null;
+
+    //为此loginId生成tokenValue
+    if(config.getAllowConcurrentLogin()){   //如果同账号多终端登录
+        if(config.getIsShare()){    //多终端下如果允许使用同一个token
+            tokenValue = getTokenValueByLoginId(loginId, device);
+        }
+    }else{  //不允许并发登录
+        //当前id对应的session不为null，说明这个账号已经在其他终端登录，需要强迫其他终端下线
+        //下线的根据就是修改dao层的id-session为被取代状态
+        SaSession session = getSessionByLoginId(loginId, false);
+        if(session != null){
+            List<TokenSign> tokenSigns = session.getTokenSignList();
+            for(TokenSign tokenSign : tokenSigns){
+                if(tokenSign.getDevice().equals(device)){ //找到异地登录的终端
+                    //1. 将此token设置为BE_REPLACED
+                    dao.updateValue(getKeyTokenValue(tokenSign.getTokenValue()), NotLoginException.BE_REPLACED);
+                    //2. 清理掉该token对应的最后操作时间
+                    clearLastActivity(tokenSign.getValue());
+                    //3. 清理账号session上的token签名
+                    session.removeTokenSign(tokenSign.getValue());
+                }
+            }
+        }
+    }
+
+    //至此tokenValue如果生成失败，直接生成一个
+    tokenValue = tokenValue != null ? tokenValue : createTokenValue(loginId);
+
+    //获取User-Session，如果session未被创建，则创建，如果已经创建，则续期
+    SaSession session = getSessionByLoginId(loginId, false);
+    session = session == null ? 
+        getSessionByLoginId(loginId) : dao.updateSessionTimeout(session.getId(), config.getTimeout());
+    //在session上记录签名
+    session.addTokenSign(new TokenSign(tokenValue, device));
+    //token->uid
+    dao.setValue(getTokenValue(tokenValue), String.valueOf(loginId), config.getTimeout());
+    //将token保存到本次req中
+    req.setAttribute(getKeyJustCreatedSave(), tokenValue);
+    //记录该tokenValue的最后写入时间
+    setLastActivityToNow(tokenValue);
+    //cookie注入
+    if(config.getIsReadCookie()){
+        SaTokenManager.getSaTokenCookie().addCookie(SaTokenManager.getSaTokenServlet().getResponse(), 
+            getTokenName(), tokenValue, "/", (int) config.getTimeout());
+    }
+}
+```
+
+#### 在当前session上注销登录
+
+```java
+public void logout(){
+    //如果当前session并没有token，比如token已经过期，直接忽略
+    String tokenValue = getTokenValue();
+    if(tokenValue == null){
+        return;
+    }
+    //如果打开了cookie模式，先把cookie清除
+    if(getConfig().getIsReadCookie()){
+        SaTokenManager.getSaTokenCookie().delCookie(SaTokenManager.getSaTokenServlet()
+            .getRequest(), SaTokenManager.getSaTokenServlet().getResponse(), getTokenName());
+        logoutByTokenValue(tokenValue);
+    }
+}
+
+//根据token进行注销
+public void logoutByTokenValue(String tokenValue) {
+	// 1. 清理掉[token-最后操作时间] 
+	clearLastActivity(tokenValue); 	
+		
+ 	// 2. 尝试清除token-id键值对 (先从db中获取loginId值，如果根本查不到loginId，那么无需继续操作 )
+ 	String loginId = getLoginIdNotHandle(tokenValue);
+ 	if(loginId == null || NotLoginException.ABNORMAL_LIST.contains(loginId)) { 			
+            return;
+ 	}
+ 	SaTokenManager.getSaTokenDao().deleteKey(getKeyTokenValue(tokenValue));	
+ 		
+ 	// 3. 尝试清理账号session上的token签名 (如果为null或已被标记为异常, 那么无需继续执行 )
+ 	SaSession session = getSessionByLoginId(loginId, false);
+ 	if(session == null) {
+ 	    return;
+ 	}
+	session.removeTokenSign(tokenValue); 
+ 	 	
+ 	// 4. 尝试注销session
+	session.logoutByTokenSignCountToZero();
+}
+```
