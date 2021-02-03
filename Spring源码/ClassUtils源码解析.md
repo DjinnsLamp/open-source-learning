@@ -1,8 +1,25 @@
-# ClassUtils源码解析
+<!-- vscode-markdown-toc -->
+* 1. [类加载器](#)
+	* 1.1. [_getDefaultClassLoader_](#getDefaultClassLoader_)
+	* 1.2. [_overrideThreadContextClassLoader_](#overrideThreadContextClassLoader_)
+	* 1.3. [_forName_](#forName_)
+* 2. [接口](#-1)
+	* 2.1. [_getAllInterfacesForClassAsSet_](#getAllInterfacesForClassAsSet_)
+	* 2.2. [_createCompositeInterface_](#createCompositeInterface_)
+* 3. [方法获取](#-1)
+	* 3.1. [_getMostSpecificMethod_](#getMostSpecificMethod_)
 
-## 类加载器
+<!-- vscode-markdown-toc-config
+	numbering=true
+	autoSave=true
+	/vscode-markdown-toc-config -->
+<!-- /vscode-markdown-toc --># ClassUtils源码解析
 
-### _getDefaultClassLoader_
+
+
+##  1. <a name=''></a>类加载器
+
+###  1.1. <a name='getDefaultClassLoader_'></a>_getDefaultClassLoader_
 
 ```java
 //返回默认的类加载器，通常是线程上下文类加载器，如果没有，加载ClassUtils的ClassLoader作为后备
@@ -31,7 +48,7 @@ public static ClassLoader getDefaultClassLoader(){
 } 
 ```
 
-### _overrideThreadContextClassLoader_
+###  1.2. <a name='overrideThreadContextClassLoader_'></a>_overrideThreadContextClassLoader_
 
 ```java
 //用指定类加载器去替换线程上下文类加载器
@@ -51,7 +68,7 @@ public static ClassLoader overrideThreadContextClassLoader(@Nullable ClassLoader
 }
 ```
 
-### _forName_
+###  1.3. <a name='forName_'></a>_forName_
 
 ```java
 //用指定的类加载器去加载特定名称的类
@@ -143,5 +160,99 @@ public static Class<?> forName(String name, @Nullable ClassLoader classLoader)
 			throw ex;
 		}
 	}
+```
+
+##  2. <a name='-1'></a>接口
+
+###  2.1. <a name='getAllInterfacesForClassAsSet_'></a>_getAllInterfacesForClassAsSet_
+
+```java
+//找出给定接口的所有实现类
+public static Set<Class<?>> getAllInterfacesForClassAsSet(Class<?> clazz, @Nullable ClassLoader classLoader) {
+	//如果clazz为null，抛出异常
+	Assert.notNull(clazz, "Class must not be null");
+	//如果clazz是接口 且 clazz在给定的classLoader中是可见的
+	if (clazz.isInterface() && isVisible(clazz, classLoader)) {
+		//返回一个不可变只包含clazz的Set对象
+		return Collections.singleton(clazz);
+	}
+	//LinkedHashSet:是一种按照插入顺序维护集合中条目的链表。这允许对集合进行插入顺序迭代。
+	//也就是说，当使用迭代器循环遍历LinkedHashSet时，元素将按插入顺序返回。
+	//然后将哈希码用作存储与键相关联的数据的索引。将键转换为其哈希码是自动执行的。
+	//定义一个用于存储接口类对象的Set
+	Set<Class<?>> interfaces = new LinkedHashSet<>();
+	//将clazz赋值给current,表示当前类对象
+	Class<?> current = clazz;
+	//遍历，只要current不为null
+	while (current != null) {
+		//获取current的所有接口
+		Class<?>[] ifcs = current.getInterfaces();
+		//遍历ifcs
+		for (Class<?> ifc : ifcs) {
+			//如果ifc在给定的classLoader中是可见的
+			if (isVisible(ifc, classLoader)) {
+				//将ifc添加到interfaces中
+				interfaces.add(ifc);	
+            }
+		}
+		//获取current的父类重新赋值给current
+		current = current.getSuperclass();
+    }
+	//返回存储接口类对象的Set
+    return interfaces;
+}
+```
+
+###  2.2. <a name='createCompositeInterface_'></a>_createCompositeInterface_
+
+```java
+//为指定接口集合创建一个复合的JDK代理类
+public static Class<?> createCompositeInterface(Class<?>[] interfaces, @Nullable ClassLoader classLoader) {
+	//如果interface为null,抛出异常
+	Assert.notEmpty(interfaces, "Interface array must not be empty");
+	//创建动态代理类，得到的Class对象可以通过获取InvocationHandler类型的构造函数进行实例化代理对象
+	//详细用法：https://blog.csdn.net/u012516166/article/details/76033249
+	return Proxy.getProxyClass(classLoader, interfaces);
+}
+```
+
+##  3. <a name='-1'></a>方法获取
+
+###  3.1. <a name='getMostSpecificMethod_'></a>_getMostSpecificMethod_
+
+```java
+//给定一个可能来自接口以及在当前反射调用中使用的目标类的方法,找到相应的目标方法
+//如果安全性检查开启，例如clazz.getDeclaredMethod()不被允许，直接返回原方法	
+public static Method getMostSpecificMethod(Method method, @Nullable Class<?> targetClass) {
+	//如果targetClass不为null 且 targetClass 不是声明method的类 且 method在targetClass中可重写
+	if (targetClass != null && targetClass != method.getDeclaringClass() && isOverridable(method, targetClass)) {
+		try {
+			//如果method是public方法
+			if (Modifier.isPublic(method.getModifiers())) {
+				try {
+					//获取targetClass的方法名为method的方法名和参数类型数组为method的参数类型数组的方法对象
+					return targetClass.getMethod(method.getName(), method.getParameterTypes());
+				}
+				catch (NoSuchMethodException ex) {
+					//捕捉没有找到方法异常,直接返回给定的方法
+					return method;
+				}
+			}
+			else {
+				//反射获取targetClass的方法名为method的方法名和参数类型数组为method的参数类型数组的方法对象
+				Method specificMethod =
+						ReflectionUtils.findMethod(targetClass, method.getName(), method.getParameterTypes());
+                //如果specifiMethod不为null,就返回specifiMetho,否则返回给定的方法
+				return (specificMethod != null ? specificMethod : method);
+			}
+		}
+		catch (SecurityException ex) {
+			// Security settings are disallowing reflective access; fall back to 'method' below.
+			// 安全性设置不允许反射式访问；回到下面的'method'
+		}
+	}
+	//直接返回给定的方法
+	return method;
+}
 ```
 
