@@ -12,6 +12,7 @@
 	* 4.3. [JNDI数据源创建器 _JndiDataSourceCreator_](#JNDI_JndiDataSourceCreator_)
 	* 4.4. [Hikari数据源创建器 _HikariDataSourceCreator_](#Hikari_HikariDataSourceCreator_)
 	* 4.5. [Druid数据源创建器 _DruidDataSourceCreator_](#Druid_DruidDataSourceCreator_)
+	* 4.6. [基础数据源创建器 _BasicDataSourceCreator_](#_BasicDataSourceCreator_)
 
 <!-- vscode-markdown-toc-config
 	numbering=true
@@ -361,7 +362,7 @@ if (!StringUtils.isEmpty(filters) && filters.contains("slf4j")) {
 }
 ```
 
-### 基础数据源创建器 _BasicDataSourceCreator_
+###  4.6. <a name='_BasicDataSourceCreator_'></a>基础数据源创建器 _BasicDataSourceCreator_
 
 `BasicDataSourceCreator`是为了适配spring1.5和2.x创建的。创建数据源的行为基于反射，源码如下:
 
