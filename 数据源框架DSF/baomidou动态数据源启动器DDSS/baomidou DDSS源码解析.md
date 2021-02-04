@@ -1,12 +1,17 @@
 # Baomidou 动态数据源启动器源码解析
 
 <!-- vscode-markdown-toc -->
-
-- 1. [工程结构](#)
-- 2. [注解设计](#-1)
-- 3. [配置文件](#-1)
-  - 3.1. [外层配置 Model——_DynamicDataSourceProperties_](#Model_DynamicDataSourceProperties_)
-  - 3.2. [内层配置 Model——_DataSourceProperty_](#Model_DataSourceProperty_)
+* 1. [工程结构](#)
+* 2. [注解设计](#-1)
+* 3. [配置文件](#-1)
+	* 3.1. [外层配置 Model——_DynamicDataSourceProperties_](#Model_DynamicDataSourceProperties_)
+	* 3.2. [内层配置 Model——_DataSourceProperty_](#Model_DataSourceProperty_)
+* 4. [数据源创建器](#-1)
+	* 4.1. [顶级接口 _DataSourceCreator_](#_DataSourceCreator_)
+	* 4.2. [默认数据源创建器 _DefaultDataSourceCreator_](#_DefaultDataSourceCreator_)
+	* 4.3. [JNDI数据源创建器 _JndiDataSourceCreator_](#JNDI_JndiDataSourceCreator_)
+	* 4.4. [Hikari数据源创建器 _HikariDataSourceCreator_](#Hikari_HikariDataSourceCreator_)
+	* 4.5. [Druid数据源创建器 _DruidDataSourceCreator_](#Druid_DruidDataSourceCreator_)
 
 <!-- vscode-markdown-toc-config
 	numbering=true
@@ -14,9 +19,9 @@
 	/vscode-markdown-toc-config -->
 <!-- /vscode-markdown-toc -->
 
-## 1. <a name=''></a>工程结构
+##  1. <a name=''></a>工程结构
 
-## 2. <a name='-1'></a>注解设计
+##  2. <a name='-1'></a>注解设计
 
 dynamic-datasource-springboot-starter 基于注解的方式，能够实现数据源的动态配置，提供的注解主要有 4 类:
 
@@ -25,7 +30,7 @@ dynamic-datasource-springboot-starter 基于注解的方式，能够实现数据
 3. **`@Master`** :主数据源注解，可作于于类和方法上，添加了该注解之后，将会默认使用名为"master"的数据源
 4. **`@Slave`** :从数据源注解，可作用于类和方法上，添加了该注解之后，将会默认使用"salve"的数据源
 
-## 3. <a name='-1'></a>配置文件
+##  3. <a name='-1'></a>配置文件
 
 dynamic-datasource-springboot-starter 的配置文件大致如下:
 
@@ -57,7 +62,7 @@ spring:
           separator: ";" # sql默认分号分隔符
 ```
 
-### 3.1. <a name='Model_DynamicDataSourceProperties_'></a>外层配置 Model——_DynamicDataSourceProperties_
+###  3.1. <a name='Model_DynamicDataSourceProperties_'></a>外层配置 Model——_DynamicDataSourceProperties_
 
 `DynamicDataSourceProperties`对应配置文件中的外层配置，即 prefix 为:**`spring.datasource.dynamic`** ，配置参数对应的实体类定义如下:
 
@@ -105,7 +110,7 @@ public class DynamicDataSourceProperties {
 }
 ```
 
-### 3.2. <a name='Model_DataSourceProperty_'></a>内层配置 Model——_DataSourceProperty_
+###  3.2. <a name='Model_DataSourceProperty_'></a>内层配置 Model——_DataSourceProperty_
 
 `DataSourceProperty`对应的是配置文件中的内层参数，即分别对应的是每一个数据源的配置参数，例如`master`数据源,`slave1`数据源，`slave2`数据源，定义内容如下:
 
@@ -151,7 +156,7 @@ public class DataSourceProperty {
 }
 ```
 
-## 数据源创建器
+##  4. <a name='-1'></a>数据源创建器
 
 数据源创建模块位于`com.baomidou.dynamic.datasource.creator`包下。数据源创建器会根据配置参数(来自配置文件或者默认参数)创建不同类型的数据源。
 
@@ -169,7 +174,7 @@ public class DataSourceProperty {
 
 <div align=center><img src="/素材/dsc.jpg"></div>
 
-### 顶级接口 _DataSourceCreator_
+###  4.1. <a name='_DataSourceCreator_'></a>顶级接口 _DataSourceCreator_
 
 `DataSourceCreator`为数据源创建器的顶层接口，定义了**如何创建数据源**，源码如下:
 
@@ -203,7 +208,7 @@ public interface DataSourceCreator {
 }
 ```
 
-### 默认数据源创建器 _DefaultDataSourceCreator_
+###  4.2. <a name='_DefaultDataSourceCreator_'></a>默认数据源创建器 _DefaultDataSourceCreator_
 
 `DefaultDataSourceCreator`类成员有两个，分别为`DynamicDataSourceProperties`和`creators`，前者为配置的一些参数封装的 Model，后者为创建器的列表，**在创建数据源之前，需要调用`support`方法判断是否支持创建此数据源**
 
@@ -268,6 +273,138 @@ private DataSource wrapDataSource(DataSource dataSource, DataSourceProperty data
 }
 ```
 
-### JNDI数据源创建器 _JndiDataSourceCreator_
+###  4.3. <a name='JNDI_JndiDataSourceCreator_'></a>JNDI数据源创建器 _JndiDataSourceCreator_
 
-源码不多，主要是
+JDNI数据源由`JndiDataSourceLookup`创建，配置时仅需要`jndi-name`即可
+
+```java
+@Override
+public DataSource createDataSource(DataSourceProperty dataSourceProperty, String publicKey) {
+    return LOOKUP.getDataSource(dataSourceProperty.getJndiName());
+}
+```
+
+###  4.4. <a name='Hikari_HikariDataSourceCreator_'></a>Hikari数据源创建器 _HikariDataSourceCreator_
+
+Hikari数据源在创建之前会首先尝试加载hikari驱动，如果加载驱动成功，那么就把`hikariExists`设置为true
+
+```java
+private static Boolean hikariExists = false;
+
+static {
+    try {
+        Class.forName(HIKARI_DATASOURCE); //尝试加载驱动
+        hikariExists = true;
+    } catch (ClassNotFoundException ignored) {
+        //加载失败，什么也不做，也不会创建
+    }
+}
+```
+
+加载时依旧从配置文件中读取参数，配置`HikariDataSource`
+
+```java
+@Override
+public DataSource createDataSource(DataSourceProperty dataSourceProperty, String publicKey) {
+    //配置文件是否配置了公钥，如果没有，使用默认公钥
+    if (StringUtils.isEmpty(dataSourceProperty.getPublicKey())) {
+        dataSourceProperty.setPublicKey(publicKey);
+    }
+    //Hikari配置参数Model
+    HikariConfig config = dataSourceProperty.getHikari().toHikariConfig(hikariCpConfig);
+    //参数设置
+    config.setUsername(dataSourceProperty.getUsername());
+    config.setPassword(dataSourceProperty.getPassword());
+    config.setJdbcUrl(dataSourceProperty.getUrl());
+    config.setPoolName(dataSourceProperty.getPoolName());
+    String driverClassName = dataSourceProperty.getDriverClassName();
+    if (!StringUtils.isEmpty(driverClassName)) {
+        config.setDriverClassName(driverClassName);
+    }
+    //封装好的数据源
+    return new HikariDataSource(config);
+}
+```
+
+###  4.5. <a name='Druid_DruidDataSourceCreator_'></a>Druid数据源创建器 _DruidDataSourceCreator_
+
+Druid数据源的创建过程和Hikari基本无区别，但是Druid的配置参数相较之下更复杂一些，多了一些过滤器的设置和高级特性的设置，例如:
+
+```java
+//stat filter是检查数据库健康状态的过滤器
+if (!StringUtils.isEmpty(filters) && filters.contains("stat")) {
+    StatFilter statFilter = new StatFilter();
+    statFilter.configFromProperties(properties);
+    proxyFilters.add(statFilter);
+}
+```
+
+```java
+//wall filter是保护数据库安全的防火墙拦截器
+if (!StringUtils.isEmpty(filters) && filters.contains("wall")) {
+    WallConfig wallConfig = DruidWallConfigUtil.toWallConfig(dataSourceProperty.getDruid().getWall(), gConfig.getWall());
+    WallFilter wallFilter = new WallFilter();
+    wallFilter.setConfig(wallConfig);
+    proxyFilters.add(wallFilter);
+}
+```
+
+```java
+//日志拦截器
+if (!StringUtils.isEmpty(filters) && filters.contains("slf4j")) {
+    Slf4jLogFilter slf4jLogFilter = new Slf4jLogFilter();
+    // 由于properties上面被用了，LogFilter不能使用configFromProperties方法，这里只能一个个set了。
+    DruidSlf4jConfig slf4jConfig = gConfig.getSlf4j();
+    slf4jLogFilter.setStatementLogEnabled(slf4jConfig.getEnable());
+    slf4jLogFilter.setStatementExecutableSqlLogEnable(slf4jConfig.getStatementExecutableSqlLogEnable());
+    proxyFilters.add(slf4jLogFilter);    
+}
+```
+
+### 基础数据源创建器 _BasicDataSourceCreator_
+
+`BasicDataSourceCreator`是为了适配spring1.5和2.x创建的。创建数据源的行为基于反射，源码如下:
+
+```java
+@Data
+@Slf4j
+public class BasicDataSourceCreator extends AbstractDataSourceCreator implements DataSourceCreator {
+
+    private static Method createMethod;
+    private static Method typeMethod;
+    private static Method urlMethod;
+    private static Method usernameMethod;
+    private static Method passwordMethod;
+    private static Method driverClassNameMethod;
+    private static Method buildMethod;
+
+    static {
+        //to support springboot 1.5 and 2.x
+        Class<?> builderClass = null;
+        try {
+            builderClass = Class.forName("org.springframework.boot.jdbc.DataSourceBuilder");
+        } catch (Exception ignored) {
+        }
+        if (builderClass == null) {
+            try {
+                builderClass = Class.forName("org.springframework.boot.autoconfigure.jdbc.DataSourceBuilder");
+            } catch (Exception e) {
+                log.warn("not in springBoot ENV,could not create BasicDataSourceCreator");
+            }
+        }
+        if (builderClass != null) {
+            try {
+                createMethod = builderClass.getDeclaredMethod("create");
+                typeMethod = builderClass.getDeclaredMethod("type", Class.class);
+                urlMethod = builderClass.getDeclaredMethod("url", String.class);
+                usernameMethod = builderClass.getDeclaredMethod("username", String.class);
+                passwordMethod = builderClass.getDeclaredMethod("password", String.class);
+                driverClassNameMethod = builderClass.getDeclaredMethod("driverClassName", String.class);
+                buildMethod = builderClass.getDeclaredMethod("build");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+```
+
