@@ -9,10 +9,22 @@
 * 4. [数据源创建器](#-1)
 	* 4.1. [顶级接口 _DataSourceCreator_](#_DataSourceCreator_)
 	* 4.2. [默认数据源创建器 _DefaultDataSourceCreator_](#_DefaultDataSourceCreator_)
-	* 4.3. [JNDI数据源创建器 _JndiDataSourceCreator_](#JNDI_JndiDataSourceCreator_)
-	* 4.4. [Hikari数据源创建器 _HikariDataSourceCreator_](#Hikari_HikariDataSourceCreator_)
-	* 4.5. [Druid数据源创建器 _DruidDataSourceCreator_](#Druid_DruidDataSourceCreator_)
+	* 4.3. [JNDI 数据源创建器 _JndiDataSourceCreator_](#JNDI_JndiDataSourceCreator_)
+	* 4.4. [Hikari 数据源创建器 _HikariDataSourceCreator_](#Hikari_HikariDataSourceCreator_)
+	* 4.5. [Druid 数据源创建器 _DruidDataSourceCreator_](#Druid_DruidDataSourceCreator_)
 	* 4.6. [基础数据源创建器 _BasicDataSourceCreator_](#_BasicDataSourceCreator_)
+* 5. [数据源加载器](#-1)
+	* 5.1. [顶级接口 _DynamicDataSourceProvider_](#_DynamicDataSourceProvider_)
+	* 5.2. [抽象顶级加载器 _AbstractDataSourceProvider_](#_AbstractDataSourceProvider_)
+	* 5.3. [JDBC 数据源加载器 _AbstractJdbcDataSourceProvider_](#JDBC_AbstractJdbcDataSourceProvider_)
+	* 5.4. [YML 数据源加载器 _YmlDynamicDataSourceProvider_](#YML_YmlDynamicDataSourceProvider_)
+* 6. [数据源处理器](#-1)
+	* 6.1. [顶级父类处理器 _DsProcessor_](#_DsProcessor_)
+	* 6.2. [_DsHeaderProcessor_](#DsHeaderProcessor_)
+	* 6.3. [_DsSessionProcessor_](#DsSessionProcessor_)
+	* 6.4. [_DsSpelExpressionProcessor_](#DsSpelExpressionProcessor_)
+* 7. [辅助工具](#-1)
+	* 7.1. [数据源解析器 _DataSourceClassResolver_](#_DataSourceClassResolver_)
 
 <!-- vscode-markdown-toc-config
 	numbering=true
@@ -247,7 +259,7 @@ public DataSource createDataSource(DataSourceProperty dataSourceProperty, String
 }
 ```
 
-Java原生支持的`DataSource`需要进一步封装以支持一些高级特性，比如Seata事务和P6spy等，封装动作由`wrapDataSource`完成，最后返回封装好的`com.baomidou.dynamic.datasource.ds.ItemDataSource`
+Java 原生支持的`DataSource`需要进一步封装以支持一些高级特性，比如 Seata 事务和 P6spy 等，封装动作由`wrapDataSource`完成，最后返回封装好的`com.baomidou.dynamic.datasource.ds.ItemDataSource`
 
 ```java
 private DataSource wrapDataSource(DataSource dataSource, DataSourceProperty dataSourceProperty) {
@@ -274,9 +286,9 @@ private DataSource wrapDataSource(DataSource dataSource, DataSourceProperty data
 }
 ```
 
-###  4.3. <a name='JNDI_JndiDataSourceCreator_'></a>JNDI数据源创建器 _JndiDataSourceCreator_
+###  4.3. <a name='JNDI_JndiDataSourceCreator_'></a>JNDI 数据源创建器 _JndiDataSourceCreator_
 
-JDNI数据源由`JndiDataSourceLookup`创建，配置时仅需要`jndi-name`即可
+JDNI 数据源由`JndiDataSourceLookup`创建，配置时仅需要`jndi-name`即可
 
 ```java
 @Override
@@ -285,9 +297,9 @@ public DataSource createDataSource(DataSourceProperty dataSourceProperty, String
 }
 ```
 
-###  4.4. <a name='Hikari_HikariDataSourceCreator_'></a>Hikari数据源创建器 _HikariDataSourceCreator_
+###  4.4. <a name='Hikari_HikariDataSourceCreator_'></a>Hikari 数据源创建器 _HikariDataSourceCreator_
 
-Hikari数据源在创建之前会首先尝试加载hikari驱动，如果加载驱动成功，那么就把`hikariExists`设置为true
+Hikari 数据源在创建之前会首先尝试加载 hikari 驱动，如果加载驱动成功，那么就把`hikariExists`设置为 true
 
 ```java
 private static Boolean hikariExists = false;
@@ -327,9 +339,9 @@ public DataSource createDataSource(DataSourceProperty dataSourceProperty, String
 }
 ```
 
-###  4.5. <a name='Druid_DruidDataSourceCreator_'></a>Druid数据源创建器 _DruidDataSourceCreator_
+###  4.5. <a name='Druid_DruidDataSourceCreator_'></a>Druid 数据源创建器 _DruidDataSourceCreator_
 
-Druid数据源的创建过程和Hikari基本无区别，但是Druid的配置参数相较之下更复杂一些，多了一些过滤器的设置和高级特性的设置，例如:
+Druid 数据源的创建过程和 Hikari 基本无区别，但是 Druid 的配置参数相较之下更复杂一些，多了一些过滤器的设置和高级特性的设置，例如:
 
 ```java
 //stat filter是检查数据库健康状态的过滤器
@@ -358,13 +370,13 @@ if (!StringUtils.isEmpty(filters) && filters.contains("slf4j")) {
     DruidSlf4jConfig slf4jConfig = gConfig.getSlf4j();
     slf4jLogFilter.setStatementLogEnabled(slf4jConfig.getEnable());
     slf4jLogFilter.setStatementExecutableSqlLogEnable(slf4jConfig.getStatementExecutableSqlLogEnable());
-    proxyFilters.add(slf4jLogFilter);    
+    proxyFilters.add(slf4jLogFilter);
 }
 ```
 
 ###  4.6. <a name='_BasicDataSourceCreator_'></a>基础数据源创建器 _BasicDataSourceCreator_
 
-`BasicDataSourceCreator`是为了适配spring1.5和2.x创建的。创建数据源的行为基于反射，源码如下:
+`BasicDataSourceCreator`是为了适配 spring1.5 和 2.x 创建的。创建数据源的行为基于反射，源码如下:
 
 ```java
 @Data
@@ -409,3 +421,394 @@ public class BasicDataSourceCreator extends AbstractDataSourceCreator implements
     }
 ```
 
+##  5. <a name='-1'></a>数据源加载器
+
+数据源加载器的作用，是将创建好的`DataSource`加载到`Map`，方便存取和调用，根据加载类型的不同，分为`JdbcDataSourceProvider`和`YmlDataSourceProvider`，分别代表从数据库中加载或者从 yml 文件中加载，**默认实现是从 yml 文件中加载**
+
+加载器位于`com.baomidou.dynamic.datasource.provider`包下，继承关系如下:
+
+<div align=center><img src="/素材/dsp.jpg"></div>
+
+###  5.1. <a name='_DynamicDataSourceProvider_'></a>顶级接口 _DynamicDataSourceProvider_
+
+```java
+public interface DynamicDataSourceProvider {
+
+    /**
+     * 加载所有数据源
+     *
+     * @return 所有数据源，key为数据源名称
+     */
+    Map<String, DataSource> loadDataSources();
+}
+```
+
+###  5.2. <a name='_AbstractDataSourceProvider_'></a>抽象顶级加载器 _AbstractDataSourceProvider_
+
+```java
+@Slf4j
+public abstract class AbstractDataSourceProvider implements DynamicDataSourceProvider {
+
+    //数据源创建器
+    @Autowired
+    private DefaultDataSourceCreator defaultDataSourceCreator;
+
+    protected Map<String, DataSource> createDataSourceMap(
+            Map<String, DataSourceProperty> dataSourcePropertiesMap) {
+        //返回的数据源集合
+        Map<String, DataSource> dataSourceMap = new HashMap<>(dataSourcePropertiesMap.size() * 2);
+        for (Map.Entry<String, DataSourceProperty> item : dataSourcePropertiesMap.entrySet()) {
+            DataSourceProperty dataSourceProperty = item.getValue();
+            //map中存储的key就是poolName
+            String poolName = dataSourceProperty.getPoolName();
+            if (poolName == null || "".equals(poolName)) {
+                poolName = item.getKey();
+            }
+            dataSourceProperty.setPoolName(poolName);
+            dataSourceMap.put(poolName, defaultDataSourceCreator.createDataSource(dataSourceProperty));
+        }
+        return dataSourceMap;
+    }
+}
+```
+
+###  5.3. <a name='JDBC_AbstractJdbcDataSourceProvider_'></a>JDBC 数据源加载器 _AbstractJdbcDataSourceProvider_
+
+JDBC 数据源加载器是从数据库中读取每一个数据源的 info，然后根据查询结果封装成 Map 并放回，`loadDataSources`的源码如下:
+
+```java
+@Override
+public Map<String, DataSource> loadDataSources() {
+    Connection conn = null;
+    Statement stmt = null;
+    try {
+        // 由于 SPI 的支持，现在已无需显示加载驱动了
+        // 但在用户显示配置的情况下，进行主动加载
+        if (!StringUtils.isEmpty(driverClassName)) {
+            Class.forName(driverClassName);
+            log.info("成功加载数据库驱动程序");
+        }
+        conn = DriverManager.getConnection(url, username, password);
+        log.info("成功获取数据库连接");
+        //查询数据库中数据源的信息
+        stmt = conn.createStatement();
+        //封装map
+        Map<String, DataSourceProperty> dataSourcePropertiesMap = executeStmt(stmt);
+        return createDataSourceMap(dataSourcePropertiesMap);
+    } catch (Exception e) {
+        e.printStackTrace();
+    } finally {
+        JdbcUtils.closeConnection(conn);
+        JdbcUtils.closeStatement(stmt);
+    }
+    return null;
+}
+```
+
+###  5.4. <a name='YML_YmlDynamicDataSourceProvider_'></a>YML 数据源加载器 _YmlDynamicDataSourceProvider_
+
+```java
+@Slf4j
+@AllArgsConstructor
+public class YmlDynamicDataSourceProvider extends AbstractDataSourceProvider {
+
+    /**
+     * 所有数据源
+     */
+    private final Map<String, DataSourceProperty> dataSourcePropertiesMap;
+
+    @Override
+    public Map<String, DataSource> loadDataSources() {
+        //父类方法，加载yml配置文件，封装成map
+        return createDataSourceMap(dataSourcePropertiesMap);
+    }
+}
+```
+
+##  6. <a name='-1'></a>数据源处理器
+
+数据源处理器 Processor 主要功能是**运行时决定使用哪一个数据源** ，位于`com.baomidou.dynamic.datasource.processor`包下，继承关系如下:
+
+<div align=center><img src="/素材/dsproc.jpg"></div>
+
+###  6.1. <a name='_DsProcessor_'></a>顶级父类处理器 _DsProcessor_
+
+`DsProcessor`以链表的形式，存储每一个处理器，链表的下一个节点保存在`nextProcessor`中。该项目供提供了三种处理器类型，`DsHeaderProcessor`，`DsSessionProcessor`和`DsSpelExpressionProcessor`，**根据 http 请求中的参数选择相应的处理器**
+
+```java
+public abstract class DsProcessor {
+
+    private DsProcessor nextProcessor;
+
+    public void setNextProcessor(DsProcessor dsProcessor) {
+        this.nextProcessor = dsProcessor;
+    }
+
+    /**
+     * 抽象匹配条件 匹配才会走当前执行器否则走下一级执行器
+     *
+     * @param key DS注解里的内容
+     * @return 是否匹配
+     */
+    public abstract boolean matches(String key);
+
+    /**
+     * 决定数据源
+     * <pre>
+     *     调用底层doDetermineDatasource，
+     *     如果返回的是null则继续执行下一个，否则直接返回
+     * </pre>
+     *
+     * @param invocation 方法执行信息
+     * @param key        DS注解里的内容
+     * @return 数据源名称
+     */
+    public String determineDatasource(MethodInvocation invocation, String key) {
+        if (matches(key)) {
+            String datasource = doDetermineDatasource(invocation, key);
+            if (datasource == null && nextProcessor != null) {
+                return nextProcessor.determineDatasource(invocation, key);
+            }
+            return datasource;
+        }
+        if (nextProcessor != null) {
+            //循环匹配
+            return nextProcessor.determineDatasource(invocation, key);
+        }
+        return null;
+    }
+
+    /**
+     * 抽象最终决定数据源
+     *
+     * @param invocation 方法执行信息
+     * @param key        DS注解里的内容
+     * @return 数据源名称
+     */
+    public abstract String doDetermineDatasource(MethodInvocation invocation, String key);
+}
+```
+
+###  6.2. <a name='DsHeaderProcessor_'></a>_DsHeaderProcessor_
+
+```java
+public class DsHeaderProcessor extends DsProcessor {
+
+    /**
+     * header prefix
+     */
+    private static final String HEADER_PREFIX = "#header";
+
+    @Override
+    public boolean matches(String key) {
+        return key.startsWith(HEADER_PREFIX);
+    }
+
+    @Override
+    public String doDetermineDatasource(MethodInvocation invocation, String key) {
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        return request.getHeader(key.substring(8));
+    }
+}
+```
+
+###  6.3. <a name='DsSessionProcessor_'></a>_DsSessionProcessor_
+
+```java
+public class DsSessionProcessor extends DsProcessor {
+
+    /**
+     * session开头
+     */
+    private static final String SESSION_PREFIX = "#session";
+
+    @Override
+    public boolean matches(String key) {
+        return key.startsWith(SESSION_PREFIX);
+    }
+
+    @Override
+    public String doDetermineDatasource(MethodInvocation invocation, String key) {
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        return request.getSession().getAttribute(key.substring(9)).toString();
+    }
+}
+```
+
+###  6.4. <a name='DsSpelExpressionProcessor_'></a>_DsSpelExpressionProcessor_
+
+```java
+public class DsSpelExpressionProcessor extends DsProcessor {
+
+    /**
+     * 参数发现器
+     */
+    private static final ParameterNameDiscoverer NAME_DISCOVERER = new DefaultParameterNameDiscoverer();
+    /**
+     * Express语法解析器
+     */
+    private static final ExpressionParser PARSER = new SpelExpressionParser();
+    /**
+     * 解析上下文的模板
+     * 对于默认不设置的情况下,从参数中取值的方式 #param1
+     * 设置指定模板 ParserContext.TEMPLATE_EXPRESSION 后的取值方式: #{#param1}
+     * issues: https://github.com/baomidou/dynamic-datasource-spring-boot-starter/issues/199
+     */
+    private ParserContext parserContext = new ParserContext() {
+
+        @Override
+        public boolean isTemplate() {
+            return false;
+        }
+
+        @Override
+        public String getExpressionPrefix() {
+            return null;
+        }
+
+        @Override
+        public String getExpressionSuffix() {
+            return null;
+        }
+    };
+
+    @Override
+    public boolean matches(String key) {
+        return true;
+    }
+
+    @Override
+    public String doDetermineDatasource(MethodInvocation invocation, String key) {
+        Method method = invocation.getMethod();
+        Object[] arguments = invocation.getArguments();
+        EvaluationContext context = new MethodBasedEvaluationContext(null, method, arguments, NAME_DISCOVERER);
+        final Object value = PARSER.parseExpression(key, parserContext).getValue(context);
+        return value == null ? null : value.toString();
+    }
+
+    public void setParserContext(ParserContext parserContext) {
+        this.parserContext = parserContext;
+    }
+}
+```
+
+##  7. <a name='-1'></a>辅助工具
+
+辅助工具组件位于`com.baomidou.dynamic.datasource.support`包下，主要提供一些核心方法支持，包含:
+
+1. **`DataSourceClassResolver`** :数据源解析器，主要通过当前方法获取该方法的`@DS`注解参数配置，即获取该方法使用的数据源的名称
+2. **`DbHealthIndicator`** :数据库健康指标
+3. **`HealthCheckAdaptor`** :数据库健康检查器
+4. **`DbConsts`** : 常量
+
+###  7.1. <a name='_DataSourceClassResolver_'></a>数据源解析器 _DataSourceClassResolver_
+
+该解析器负责解析当前 method 需要使用的数据源，并缓存在 map 中
+
+```java
+/**
+ * 缓存方法对应的数据源
+ */
+private final Map<Object, String> dsCache = new ConcurrentHashMap<>();
+```
+
+当解析时，应首先尝试从本地缓存中获取，如果本地缓存获取不到，再尝试从解析器中解析
+
+```java
+/**
+ * 从缓存获取数据
+ *
+ * @param method       方法
+ * @param targetObject 目标对象
+ * @return ds
+ */
+public String findDSKey(Method method, Object targetObject) {
+    if (method.getDeclaringClass() == Object.class) {
+        return "";
+    }
+    Object cacheKey = new MethodClassKey(method, targetObject.getClass());
+    String ds = this.dsCache.get(cacheKey);
+    if (ds == null) {
+        ds = computeDatasource(method, targetObject);
+        if (ds == null) {
+            ds = "";
+        }
+        this.dsCache.put(cacheKey, ds);
+    }
+    return ds;
+}
+```
+
+当本地缓存获取不到数据源信息，解析开始，解析是依据查找`@DS`注解上的`value`字段，解析的顺序为：
+
+1. 当前方法
+2. 桥接方法
+3. 从当前类一直找到 Object
+4. 若支持 mybatis-spring 或者 mybatis-plus，则寻找 mapper 上的注解信息
+
+解析的核心步骤在`computeDataSource`方法中，源码如下:
+
+```java
+private String computeDatasource(Method method, Object targetObject) {
+        if (allowedPublicOnly && !Modifier.isPublic(method.getModifiers())) {
+            return null;
+        }
+        Class<?> targetClass = targetObject.getClass();
+        Class<?> userClass = ClassUtils.getUserClass(targetClass);
+        // JDK代理时,  获取实现类的方法声明.  method: 接口的方法, specificMethod: 实现类方法
+        Method specificMethod = ClassUtils.getMostSpecificMethod(method, userClass);
+
+        specificMethod = BridgeMethodResolver.findBridgedMethod(specificMethod);
+        // 从当前方法查找
+        String dsAttr = findDataSourceAttribute(specificMethod);
+        if (dsAttr != null) {
+            return dsAttr;
+        }
+        // 从当前方法声明的类查找
+        dsAttr = findDataSourceAttribute(specificMethod.getDeclaringClass());
+        if (dsAttr != null && ClassUtils.isUserLevelMethod(method)) {
+            return dsAttr;
+        }
+        // 如果存在桥接方法
+        if (specificMethod != method) {
+            // 从桥接方法查找
+            dsAttr = findDataSourceAttribute(method);
+            if (dsAttr != null) {
+                return dsAttr;
+            }
+            // 从桥接方法声明的类查找
+            dsAttr = findDataSourceAttribute(method.getDeclaringClass());
+            if (dsAttr != null && ClassUtils.isUserLevelMethod(method)) {
+                return dsAttr;
+            }
+        }
+        //如果获取不到，则执行默认解析
+        return getDefaultDataSourceAttr(targetObject);
+    }
+```
+
+```java
+    /**
+     * 用于处理嵌套代理
+     *
+     * @param target JDK 代理类对象
+     * @return InvocationHandler 的 Class
+     */
+    private Class<?> getMapperInterfaceClass(Object target) {
+        Object current = target;
+        while (Proxy.isProxyClass(current.getClass())) {
+            Object currentRefObject = AopProxyUtils.getSingletonTarget(current);
+            if (currentRefObject == null) {
+                break;
+            }
+            current = currentRefObject;
+        }
+        try {
+            if (Proxy.isProxyClass(current.getClass())) {
+                return (Class<?>) mapperInterfaceField.get(Proxy.getInvocationHandler(current));
+            }
+        } catch (IllegalAccessException ignore) {
+        }
+        return null;
+    }
+```
